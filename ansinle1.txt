@@ -1,0 +1,268 @@
+---
+- name: Install Nginx with Handlers and Copy index.html
+  hosts: your_target_server
+  become: yes  # To run tasks with sudo privileges
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Ensure Nginx is started
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+      when: ansible_os_family == 'Debian'
+
+    - name: Copy index.html
+      copy:
+        src: path/to/your/index.html
+        dest: /var/www/html/index.html
+      notify: Restart Nginx  # Notify the handler to restart Nginx if the file is copied
+
+
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: "'nginx' in ansible_play_hosts_all"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+- name: Example Playbook with Tags
+  hosts: your_target_server
+  become: yes  # To run tasks with sudo privileges
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+      tags:
+        - packages
+
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+      when: ansible_os_family == 'Debian'
+      tags:
+        - packages
+
+    - name: Ensure Nginx is started
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+      when: ansible_os_family == 'Debian'
+      tags:
+        - services
+
+    - name: Copy index.html
+      copy:
+        src: path/to/your/index.html
+        dest: /var/www/html/index.html
+      notify: Restart Nginx
+      tags:
+        - content
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
+      when: "'nginx' in ansible_play_hosts_all"
+
+# Red Hat-based systems tasks and handlers would be similar with appropriate package manager and service manager.
+
+Tags
+If you have a large playbook, it may be useful to run only specific parts of it instead of running the entire playbook. You can do this with Ansible tags. Using tags to execute or skip selected tasks is a two-step process:
+
+Add tags to your tasks, either individually or with tag inheritance from a block, play, role, or import.
+
+Select or skip tags when you run your playbook.
+
+
+
+ansible-playbook example.yml --tags "packages,services"
+
+ansible-playbook example.yml --tags "content"
+
+ansible-playbook example.yml --list-tags
+
+
+ansible-playbook example.yml --tags "configuration,packages" --list-tasks
+
+
+
+
+ansible-playbook example.yml --skip-tags "packages"
+
+Ansible Vault is a feature of ansible that allows you to keep sensitive data such as passwords or keys in encrypted files, rather than as plaintext in playbooks or roles. These vault files can then be distributed or placed in source control.
+
+Creating Encrypted Files
+To create a new encrypted data file, run the following command:
+
+ansible-vault create foo.yml
+
+ansible-vault edit foo.yml
+To edit a file encrypted with the ‘vault2’ password file and assigned the ‘pass2’ vault ID:
+
+ansible-vault edit --vault-id pass2@vault2 foo.yml
+
+
+Rekeying Encrypted Files
+Should you wish to change your password on a vault-encrypted file or files, you can do so with the rekey command:
+
+ansible-vault rekey foo.yml bar.yml baz.yml
+
+ansible-vault encrypt foo.yml bar.yml baz.yml
+
+
+
+ansible-vault decrypt foo.yml bar.yml baz.yml
+
+Viewing Encrypted Files
+
+
+ansible-vault view foo.yml bar.yml baz.yml
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+- name: Deploy WAR to Tomcat
+  hosts: your_tomcat_server
+  become: yes  # To run tasks with sudo privileges
+
+  vars:
+    tomcat_base_path: "/opt/tomcat"  # Adjust this path based on your Tomcat installation
+
+  tasks:
+    - name: Create Tomcat directories
+      file:
+        path: "{{ tomcat_base_path }}/webapps/your_app"
+        state: directory
+      tags:
+        - directories
+
+    - name: Copy WAR file to Tomcat
+      copy:
+        src: path/to/your/your_app.war
+        dest: "{{ tomcat_base_path }}/webapps/your_app/"
+      tags:
+        - deploy
+
+    - name: Restart Tomcat
+      systemd:
+        name: tomcat
+        state: restarted
+      tags:
+        - restart
+
+
+
+
+https://updates.jenkins.io/latest/jenkins.war
+
+
+
+
+
+
+---
+- name: Install Tomcat on Ubuntu
+  hosts: your_tomcat_server
+  become: yes  # To run tasks with sudo privileges
+
+  vars:
+    tomcat_version: "9.0.61"  # Adjust the version as needed
+    tomcat_install_path: "/opt/tomcat"
+
+  tasks:
+    - name: Update package cache
+      apt:
+        update_cache: yes
+
+    - name: Install Java (OpenJDK)
+      apt:
+        name: openjdk-8-jdk
+        state: present
+
+    - name: Create Tomcat directory
+      file:
+        path: "{{ tomcat_install_path }}"
+        state: directory
+
+    - name: Download Tomcat
+      get_url:
+        url: "https://downloads.apache.org/tomcat/tomcat-{{ tomcat_version }}/tar.gz/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "{{ tomcat_install_path }}/tomcat-{{ tomcat_version }}.tar.gz"
+
+    - name: Extract Tomcat
+      ansible.builtin.unarchive:
+        src: "{{ tomcat_install_path }}/tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "{{ tomcat_install_path }}"
+        remote_src: yes
+        creates: "{{ tomcat_install_path }}/apache-tomcat-{{ tomcat_version }}"
+
+    - name: Set environment variables for Tomcat
+      lineinfile:
+        path: /etc/environment
+        line: 'CATALINA_HOME="{{ tomcat_install_path }}/apache-tomcat-{{ tomcat_version }}"'
+      notify: Reload Environment
+
+  handlers:
+    - name: Reload Environment
+      ansible.builtin.command: "systemctl --system daemon-reload"
